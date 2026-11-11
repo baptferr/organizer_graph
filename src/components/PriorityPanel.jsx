@@ -1,4 +1,4 @@
-import { formatDue, ZONES } from '../lib/model.js'
+import { formatDue, zoneOf, ZONES } from '../lib/model.js'
 
 export default function PriorityPanel({ tasks, selectedId, onSelect, priorityMode, onTogglePriorityMode, onCollapse }) {
   const sorted = [...tasks].sort((a, b) => b._score - a._score)
@@ -19,7 +19,7 @@ export default function PriorityPanel({ tasks, selectedId, onSelect, priorityMod
 
       <ol className="priority-list">
         {sorted.map((t, i) => {
-          const zone = ZONES[t.zoneKey]
+          const zone = ZONES[zoneOf(t)]
           const due = formatDue(t.dueDate)
           return (
             <li key={t.id}>

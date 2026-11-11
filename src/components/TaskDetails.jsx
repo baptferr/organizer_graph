@@ -1,5 +1,5 @@
 import { useRef, useState } from 'react'
-import { CRITERIA, formatDue, ZONES } from '../lib/model.js'
+import { CRITERIA, formatDue, zoneOf, ZONES } from '../lib/model.js'
 
 function CriterionBar({ label, hint, value }) {
   const pct = Math.abs(value) * 5
@@ -53,7 +53,7 @@ export default function TaskDetails({ task, onClose, onComplete, onReopen, onArc
     window.removeEventListener('pointerup', onPointerUp)
   }
 
-  const zone = ZONES[task.zoneKey]
+  const zone = ZONES[zoneOf(task)]
   const due = formatDue(task.dueDate)
 
   return (
