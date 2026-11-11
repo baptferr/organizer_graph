@@ -1,0 +1,137 @@
+import { useMemo, useState } from 'react'
+import Scene3D from './components/Scene3D.jsx'
+import TaskDetails from './components/TaskDetails.jsx'
+import AddTaskModal from './components/AddTaskModal.jsx'
+import PriorityPanel from './components/PriorityPanel.jsx'
+import { loadTasks, satisfactionScore, saveTasks, ZONES } from './lib/model.js'
+
+const FILTERS = [
+  { key: 'active', label: 'À faire' },
+  { key: 'done', label: 'Terminées' },
+  { key: 'archived', label: 'Archivées' },
+  { key: 'all', label: 'Toutes' },
+]
+
+function ZoneLegend() {
+  return (
+    <div className="panel legend">
+      <h2>Zones de satisfaction</h2>
+      <ul>
+        {Object.entries(ZONES).map(([key, z]) => (
+          <li key={key}>
+            <span className="zone-dot" style={{ background: z.color }} />
+            <span>{z.label}</span>
+          </li>
+        ))}
+      </ul>
+    </div>
+  )
+}
+
+export default function App() {
+  const [tasks, setTasks] = useState(() => loadTasks())
+  const [selectedId, setSelectedId] = useState(null)
+  const [showAdd, setShowAdd] = useState(false)
+  const [showPriorities, setShowPriorities] = useState(true)
+  const [showLegend, setShowLegend] = useState(false)
+  const [priorityMode, setPriorityMode] = useState(false)
+  const [filter, setFilter] = useState('active')
+
+  const decorated = useMemo(
+    () => tasks.map((t) => ({ ...t, _score: satisfactionScore(t) })),
+    [tasks],
+  )
+  const visibleTasks = useMemo(
+    () => decorated.filter((t) => (filter === 'all' ? true : t.status === filter)),
+    [decorated, filter],
+  )
+  const activeTasks = useMemo(() => decorated.filter((t) => t.status === 'active'), [decorated])
+  const selectedTask = decorated.find((t) => t.id === selectedId) || null
+
+  const update = (id, changes) =>
+    setTasks((ts) => ts.map((t) => (t.id === id ? { ...t, ...changes } : t)))
+
+  const addTask = (task) => {
+    setTasks((ts) => [...ts, task])
+    setShowAdd(false)
+    setFilter('active')
+    setSelectedId(task.id)
+  }
+
+  const deleteTask = (id) => {
+    setTasks((ts) => ts.filter((t) => t.id !== id))
+    setSelectedId((s) => (s === id ? null : s))
+  }
+
+  const selectFromPanel = (id) => {
+    setFilter('active')
+    setSelectedId(id)
+  }
+
+  saveTasks(tasks)
+
+  return (
+    <div className="app">
+      <Scene3D
+        tasks={visibleTasks}
+        selectedId={selectedId}
+        onSelect={setSelectedId}
+        priorityMode={priorityMode}
+      />
+
+      <header className="topbar">
+        <div className="brand">
+          <h1>Tâches 3D</h1>
+          <p>Envie · Complexité · Besoin</p>
+        </div>
+        <div className="segmented">
+          {FILTERS.map((f) => (
+            <button
+              key={f.key}
+              className={filter === f.key ? 'active' : ''}
+              onClick={() => setFilter(f.key)}
+            >
+              {f.label}
+            </button>
+          ))}
+        </div>
+        <div className="topbar-actions">
+          <button className="btn ghost" onClick={() => setShowLegend((v) => !v)}>
+            {showLegend ? 'Masquer les zones' : 'Zones'}
+          </button>
+          <button className="btn ghost" onClick={() => setShowPriorities((v) => !v)}>
+            {showPriorities ? 'Masquer priorités' : 'Priorités'}
+          </button>
+          <button className="btn primary" onClick={() => setShowAdd(true)}>＋ Nouvelle tâche</button>
+        </div>
+      </header>
+
+      {showPriorities && (
+        <PriorityPanel
+          tasks={activeTasks}
+          selectedId={selectedId}
+          onSelect={selectFromPanel}
+          priorityMode={priorityMode}
+          onTogglePriorityMode={setPriorityMode}
+          onCollapse={() => setShowPriorities(false)}
+        />
+      )}
+
+      {showLegend && <ZoneLegend />}
+
+      {selectedTask && (
+        <TaskDetails
+          key={selectedTask.id}
+          task={selectedTask}
+          onClose={() => setSelectedId(null)}
+          onComplete={() => update(selectedTask.id, { status: 'done' })}
+          onReopen={() => update(selectedTask.id, { status: 'active' })}
+          onArchive={() => update(selectedTask.id, { status: 'archived' })}
+          onDelete={() => deleteTask(selectedTask.id)}
+        />
+      )}
+
+      {showAdd && <AddTaskModal onAdd={addTask} onClose={() => setShowAdd(false)} />}
+    </div>
+  )
+}
