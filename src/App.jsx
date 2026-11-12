@@ -1,9 +1,9 @@
-import { useMemo, useState } from 'react'
+import { useMemo, useRef, useState } from 'react'
 import Scene3D from './components/Scene3D.jsx'
 import TaskDetails from './components/TaskDetails.jsx'
-import AddTaskModal from './components/AddTaskModal.jsx'
+import TaskFormModal from './components/TaskFormModal.jsx'
 import PriorityPanel from './components/PriorityPanel.jsx'
-import { loadTasks, satisfactionScore, saveTasks, ZONES } from './lib/model.js'
+import { loadTasks, normalizeImportedTasks, satisfactionScore, saveTasks, ZONES } from './lib/model.js'
 
 const FILTERS = [
   { key: 'active', label: 'À faire' },
@@ -32,10 +32,12 @@ export default function App() {
   const [tasks, setTasks] = useState(() => loadTasks())
   const [selectedId, setSelectedId] = useState(null)
   const [showAdd, setShowAdd] = useState(false)
+  const [editingId, setEditingId] = useState(null)
   const [showPriorities, setShowPriorities] = useState(true)
   const [showLegend, setShowLegend] = useState(false)
   const [priorityMode, setPriorityMode] = useState(false)
   const [filter, setFilter] = useState('active')
+  const fileRef = useRef(null)
 
   const decorated = useMemo(
     () => tasks.map((t) => ({ ...t, _score: satisfactionScore(t) })),
@@ -56,6 +58,44 @@ export default function App() {
     setShowAdd(false)
     setFilter('active')
     setSelectedId(task.id)
+  }
+
+  const exportJson = () => {
+    const blob = new Blob([JSON.stringify(tasks, null, 2)], { type: 'application/json' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `taches-3d-${new Date().toISOString().slice(0, 10)}.json`
+    a.click()
+    URL.revokeObjectURL(url)
+  }
+
+  const importJson = async (file) => {
+    try {
+      const imported = normalizeImportedTasks(JSON.parse(await file.text()))
+      if (imported.length === 0) {
+        window.alert('Aucune tâche valide trouvée dans ce fichier.')
+        return
+      }
+      const replace = window.confirm(
+        `${imported.length} tâche(s) trouvée(s).\n\nOK : remplacer toutes les tâches actuelles.\nAnnuler : les ajouter aux tâches existantes.`,
+      )
+      setTasks((ts) => {
+        if (replace) return imported
+        const existing = new Set(ts.map((t) => t.id))
+        const used = new Set()
+        return [
+          ...ts,
+          ...imported.map((t) => {
+            while (existing.has(t.id) || used.has(t.id)) t = { ...t, id: crypto.randomUUID() }
+            used.add(t.id)
+            return t
+          }),
+        ]
+      })
+    } catch (e) {
+      window.alert(`Import impossible : ${e.message}`)
+    }
   }
 
   const deleteTask = (id) => {
@@ -102,6 +142,23 @@ export default function App() {
           <button className="btn ghost" onClick={() => setShowPriorities((v) => !v)}>
             {showPriorities ? 'Masquer priorités' : 'Priorités'}
           </button>
+          <button className="btn ghost" title="Exporter toutes les tâches en JSON" onClick={exportJson}>
+            ⬇ Export
+          </button>
+          <button className="btn ghost" title="Importer des tâches depuis un fichier JSON" onClick={() => fileRef.current?.click()}>
+            ⬆ Import
+          </button>
+          <input
+            ref={fileRef}
+            type="file"
+            accept="application/json,.json"
+            hidden
+            onChange={(e) => {
+              const f = e.target.files[0]
+              if (f) importJson(f)
+              e.target.value = ''
+            }}
+          />
           <button className="btn primary" onClick={() => setShowAdd(true)}>＋ Nouvelle tâche</button>
         </div>
       </header>
@@ -128,10 +185,25 @@ export default function App() {
           onReopen={() => update(selectedTask.id, { status: 'active' })}
           onArchive={() => update(selectedTask.id, { status: 'archived' })}
           onDelete={() => deleteTask(selectedTask.id)}
+          onEdit={() => setEditingId(selectedTask.id)}
         />
       )}
 
-      {showAdd && <AddTaskModal onAdd={addTask} onClose={() => setShowAdd(false)} />}
+      {(showAdd || editingId) && (
+        <TaskFormModal
+          key={editingId || 'new'}
+          initial={editingId ? tasks.find((t) => t.id === editingId) : null}
+          onAdd={addTask}
+          onUpdate={(id, changes) => {
+            update(id, changes)
+            setEditingId(null)
+          }}
+          onClose={() => {
+            setShowAdd(false)
+            setEditingId(null)
+          }}
+        />
+      )}
     </div>
   )
 }
