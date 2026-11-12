@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { Canvas } from '@react-three/fiber'
 import { Html, OrbitControls } from '@react-three/drei'
 import * as THREE from 'three'
-import { zoneColorForSigns, zoneOf, ZONES } from '../lib/model.js'
+import { computePointPositions, zoneColorForSigns, zoneOf, ZONES } from '../lib/model.js'
 
 const HALF = 5
 const SIGNS = [-1, 1]
@@ -71,11 +71,10 @@ function Axes() {
   )
 }
 
-function TaskPoint({ task, selected, priorityScale, onSelect }) {
+function TaskPoint({ task, position, selected, priorityScale, onSelect }) {
   const [hovered, setHovered] = useState(false)
   const done = task.status === 'done'
   const color = ZONES[zoneOf(task)].color
-  const position = [task.envie / 2, task.complexite / 2, task.besoin / 2]
   const radius = 0.18 * priorityScale * (selected || hovered ? 1.35 : 1)
 
   useEffect(() => {
@@ -123,6 +122,7 @@ function TaskPoint({ task, selected, priorityScale, onSelect }) {
 }
 
 export default function Scene3D({ tasks, selectedId, onSelect, priorityMode }) {
+  const positions = useMemo(() => computePointPositions(tasks), [tasks])
   const scales = useMemo(() => {
     if (!priorityMode || tasks.length === 0) return {}
     const scores = tasks.map((t) => t._score)
@@ -145,6 +145,7 @@ export default function Scene3D({ tasks, selectedId, onSelect, priorityMode }) {
           <TaskPoint
             key={t.id}
             task={t}
+            position={positions[t.id]}
             selected={t.id === selectedId}
             priorityScale={scales[t.id] ?? 1}
             onSelect={onSelect}
