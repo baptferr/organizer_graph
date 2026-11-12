@@ -24,7 +24,7 @@ function CriterionBar({ label, hint, value }) {
   )
 }
 
-export default function TaskDetails({ task, onClose, onComplete, onReopen, onArchive, onDelete }) {
+export default function TaskDetails({ task, onClose, onComplete, onReopen, onArchive, onDelete, onEdit }) {
   const winRef = useRef(null)
   const drag = useRef(null)
   const [pos, setPos] = useState(null)
@@ -88,7 +88,10 @@ export default function TaskDetails({ task, onClose, onComplete, onReopen, onArc
         {task.status === 'active' && (
           <div className="actions">
             <button className="btn primary" onClick={onComplete}>✓ Marquer comme terminée</button>
-            <button className="btn danger" onClick={onDelete}>Supprimer</button>
+            <div className="actions-row">
+              <button className="btn" onClick={onEdit}>✎ Modifier</button>
+              <button className="btn danger" onClick={onDelete}>Supprimer</button>
+            </div>
           </div>
         )}
 

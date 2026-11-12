@@ -3,11 +3,14 @@ import { CRITERIA, createTask } from '../lib/model.js'
 
 const EMPTY = { envie: 0, complexite: 0, besoin: 0 }
 
-export default function AddTaskModal({ onAdd, onClose }) {
-  const [name, setName] = useState('')
-  const [description, setDescription] = useState('')
-  const [values, setValues] = useState(EMPTY)
-  const [dueDate, setDueDate] = useState('')
+export default function TaskFormModal({ initial, onAdd, onUpdate, onClose }) {
+  const editing = Boolean(initial)
+  const [name, setName] = useState(initial ? initial.name : '')
+  const [description, setDescription] = useState(initial ? initial.description : '')
+  const [values, setValues] = useState(
+    initial ? { envie: initial.envie, complexite: initial.complexite, besoin: initial.besoin } : EMPTY,
+  )
+  const [dueDate, setDueDate] = useState(initial?.dueDate || '')
   const [error, setError] = useState('')
 
   const submit = (e) => {
@@ -16,14 +19,23 @@ export default function AddTaskModal({ onAdd, onClose }) {
       setError('Le nom de la tâche est obligatoire.')
       return
     }
-    onAdd(createTask({ name, description, ...values, dueDate }))
+    if (editing) {
+      onUpdate(initial.id, {
+        name: name.trim(),
+        description: description.trim(),
+        ...values,
+        dueDate: dueDate || null,
+      })
+    } else {
+      onAdd(createTask({ name, description, ...values, dueDate }))
+    }
   }
 
   return (
     <div className="modal-backdrop" onClick={onClose}>
       <form className="modal" onClick={(e) => e.stopPropagation()} onSubmit={submit}>
         <header className="modal-header">
-          <h2>Nouvelle tâche</h2>
+          <h2>{editing ? 'Modifier la tâche' : 'Nouvelle tâche'}</h2>
           <button type="button" className="icon-btn" onClick={onClose} aria-label="Fermer">✕</button>
         </header>
 
@@ -76,7 +88,9 @@ export default function AddTaskModal({ onAdd, onClose }) {
 
         <footer className="modal-footer">
           <button type="button" className="btn ghost" onClick={onClose}>Annuler</button>
-          <button type="submit" className="btn primary">Ajouter la tâche</button>
+          <button type="submit" className="btn primary">
+            {editing ? 'Enregistrer' : 'Ajouter la tâche'}
+          </button>
         </footer>
       </form>
     </div>

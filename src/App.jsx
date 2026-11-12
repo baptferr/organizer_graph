@@ -1,7 +1,7 @@
 import { useMemo, useRef, useState } from 'react'
 import Scene3D from './components/Scene3D.jsx'
 import TaskDetails from './components/TaskDetails.jsx'
-import AddTaskModal from './components/AddTaskModal.jsx'
+import TaskFormModal from './components/TaskFormModal.jsx'
 import PriorityPanel from './components/PriorityPanel.jsx'
 import { loadTasks, normalizeImportedTasks, satisfactionScore, saveTasks, ZONES } from './lib/model.js'
 
@@ -32,6 +32,7 @@ export default function App() {
   const [tasks, setTasks] = useState(() => loadTasks())
   const [selectedId, setSelectedId] = useState(null)
   const [showAdd, setShowAdd] = useState(false)
+  const [editingId, setEditingId] = useState(null)
   const [showPriorities, setShowPriorities] = useState(true)
   const [showLegend, setShowLegend] = useState(false)
   const [priorityMode, setPriorityMode] = useState(false)
@@ -184,10 +185,25 @@ export default function App() {
           onReopen={() => update(selectedTask.id, { status: 'active' })}
           onArchive={() => update(selectedTask.id, { status: 'archived' })}
           onDelete={() => deleteTask(selectedTask.id)}
+          onEdit={() => setEditingId(selectedTask.id)}
         />
       )}
 
-      {showAdd && <AddTaskModal onAdd={addTask} onClose={() => setShowAdd(false)} />}
+      {(showAdd || editingId) && (
+        <TaskFormModal
+          key={editingId || 'new'}
+          initial={editingId ? tasks.find((t) => t.id === editingId) : null}
+          onAdd={addTask}
+          onUpdate={(id, changes) => {
+            update(id, changes)
+            setEditingId(null)
+          }}
+          onClose={() => {
+            setShowAdd(false)
+            setEditingId(null)
+          }}
+        />
+      )}
     </div>
   )
 }
