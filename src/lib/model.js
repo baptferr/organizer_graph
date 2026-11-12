@@ -150,3 +150,55 @@ export function saveTasks(tasks) {
     // quota dépassé ou mode privé : on ignore silencieusement
   }
 }
+
+export function normalizeImportedTasks(raw) {
+  if (!Array.isArray(raw)) throw new Error('le fichier doit contenir un tableau de tâches')
+  const clamp = (v) => Math.max(-10, Math.min(10, Math.round(Number(v) || 0)))
+  const tasks = []
+  for (const t of raw) {
+    if (!t || typeof t.name !== 'string' || !t.name.trim()) continue
+    tasks.push({
+      id: typeof t.id === 'string' && t.id ? t.id : crypto.randomUUID(),
+      name: t.name.trim(),
+      description: typeof t.description === 'string' ? t.description.trim() : '',
+      envie: clamp(t.envie),
+      complexite: clamp(t.complexite),
+      besoin: clamp(t.besoin),
+      dueDate:
+        typeof t.dueDate === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(t.dueDate) && !Number.isNaN(Date.parse(t.dueDate))
+          ? t.dueDate
+          : null,
+      status: ['active', 'done', 'archived'].includes(t.status) ? t.status : 'active',
+      createdAt: Number(t.createdAt) || Date.now(),
+    })
+  }
+  return tasks
+}
+
+export function computePointPositions(tasks) {
+  const groups = new Map()
+  for (const t of tasks) {
+    const key = `${t.envie},${t.complexite},${t.besoin}`
+    if (!groups.has(key)) groups.set(key, [])
+    groups.get(key).push(t)
+  }
+  const positions = {}
+  for (const group of groups.values()) {
+    if (group.length === 1) {
+      const t = group[0]
+      positions[t.id] = [t.envie / 2, t.complexite / 2, t.besoin / 2]
+      continue
+    }
+    group.forEach((t, i) => {
+      const ring = Math.floor(i / 8)
+      const angle = (2 * Math.PI * (i % 8)) / Math.min(group.length - ring * 8, 8)
+      const radius = 0.22 + ring * 0.14
+      positions[t.id] = [
+        t.envie / 2 + radius * Math.cos(angle),
+        t.complexite / 2,
+        t.besoin / 2 + radius * Math.sin(angle),
+      ]
+    })
+  }
+  return positions
+}
